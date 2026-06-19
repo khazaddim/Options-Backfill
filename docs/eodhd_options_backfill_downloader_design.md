@@ -65,9 +65,8 @@ The existing mocked tests are a good starting point for response-shape tests. Th
 ## Recommended Module Layout
 
 ```text
-Macro_Ideas/
+Options-Backfill/
   docs/
-    backfill_module_design.md
     eodhd_options_backfill_downloader_design.md
   options_backfill/
     __init__.py

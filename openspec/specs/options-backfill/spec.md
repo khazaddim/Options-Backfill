@@ -1,7 +1,7 @@
 # options-backfill Specification
 
 ## Purpose
-TBD - created by archiving change add-eodhd-backfill-m0-m1. Update Purpose after archive.
+Provide the durable foundation for EODHD options backfill work, including the frozen Milestone 0 interfaces and the Milestone 1 PostgreSQL storage primitives for jobs, tasks, and idempotent EOD row persistence.
 ## Requirements
 ### Requirement: Milestone 0 scope and interfaces SHALL be frozen before implementation
 The project SHALL complete a formal scope and interface freeze for v1 before implementation beyond documentation and planning begins.

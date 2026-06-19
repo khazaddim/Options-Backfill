@@ -17,7 +17,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-import asyncpg
+import pytest
+
+asyncpg = pytest.importorskip("asyncpg")
 
 from options_backfill.config import OptionsBackfillConfig
 from options_backfill.storage import OptionsBackfillStorage
@@ -33,9 +35,9 @@ def _load_pg_config() -> dict[str, Any]:
     """
     config_path = Path(os.getenv("PG_TEST_CONFIG_PATH", str(DEFAULT_PG_CONFIG_PATH)))
     if not config_path.exists():
-        raise FileNotFoundError(
-            f"Postgres test config was not found at {config_path}. "
-            "Set PG_TEST_CONFIG_PATH to a valid config file."
+        pytest.skip(
+            f"Postgres integration test config was not found at {config_path}. "
+            "Set PG_TEST_CONFIG_PATH to a valid config file for test_database."
         )
 
     config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -43,10 +45,10 @@ def _load_pg_config() -> dict[str, Any]:
     missing = required_keys.difference(config)
     if missing:
         missing_keys = ", ".join(sorted(missing))
-        raise ValueError(f"Postgres test config is missing required keys: {missing_keys}")
+        pytest.skip(f"Postgres test config is missing required keys: {missing_keys}")
 
     if str(config["database"]) != "test_database":
-        raise ValueError("Integration tests only run against database='test_database'.")
+        pytest.skip("Integration tests only run against database='test_database'.")
 
     return config
 
