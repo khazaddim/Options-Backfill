@@ -1,7 +1,7 @@
-# Project Context
+﻿# Project Context
 
 ## Purpose
-This repository isolates the options backfill work that was split out of Macro_Ideas so it can evolve independently. The current scope covers the EODHD options helper, PostgreSQL persistence for backfill state, and the OpenSpec baseline for Milestones 0-1.
+This repository isolates the options backfill work that was split out of Macro_Ideas so it can evolve independently. The current scope covers the Massive options helper, PostgreSQL persistence for backfill state, and the OpenSpec baseline for Milestones 0-1.
 
 ## Tech Stack
 - Python 3.10+
@@ -20,7 +20,7 @@ This repository isolates the options backfill work that was split out of Macro_I
 - Use concise docstrings where behavior or intent is not obvious from the code alone.
 
 ### Architecture Patterns
-- `eodhd_options_helper.py` is the notebook-scale synchronous adapter with a DuckDB cache.
+- `massive_options_helper.py` is the notebook-scale synchronous adapter with a DuckDB cache.
 - `options_backfill/` is the durable backfill foundation for PostgreSQL-backed job and task state.
 - SQL lives in `options_backfill/sql/` and is loaded by name from `queries.sql`.
 - Provider orchestration beyond storage should be introduced in follow-up changes, not folded into storage primitives.
@@ -37,17 +37,18 @@ This repository isolates the options backfill work that was split out of Macro_I
 - Direct fixes are acceptable for bugs, documentation cleanup, test hygiene, and repo setup issues.
 
 ## Domain Context
-- The primary provider today is the EODHD UnicornBay Options API.
+- The primary provider today is the Massive Options API.
 - The first endpoint priority is `eod`; `contracts` is the second planned endpoint.
 - Backfill state must be durable and resumable, with idempotent writes for `(contract, tradetime)` rows.
 
 ## Important Constraints
-- Respect EODHD request quotas; one HTTP request maps to ten billed API call units in current assumptions.
+- Respect Massive request quotas; one HTTP request maps to ten billed API call units in current assumptions.
 - PostgreSQL is the durable system of record for backfill state; DuckDB is only a local helper cache.
 - Integration tests must not accidentally target non-test databases.
 
 ## External Dependencies
-- EODHD UnicornBay Options API for underlying symbols, contracts, and EOD records
+- Massive Options API for underlying symbols, contracts, and EOD records
 - PostgreSQL for durable storage
 - DuckDB for local cache persistence in the helper
+
 

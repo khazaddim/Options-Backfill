@@ -1,8 +1,8 @@
-# Options-Backfill
+﻿# Options-Backfill
 
 Options-Backfill is the extracted options backfill portion of Macro_Ideas. It currently includes:
 
-- `eodhd_options_helper.py` for EODHD endpoint access and DuckDB-backed local caching.
+- `massive_options_helper.py` for Massive endpoint access and DuckDB-backed local caching.
 - `options_backfill/` for PostgreSQL schema, storage primitives, and typed config/result models.
 - `openspec/` for specification-driven planning and change management.
 
@@ -33,4 +33,5 @@ The PostgreSQL integration tests in `tests/test_options_backfill_storage.py` req
 ## OpenSpec
 
 OpenSpec is already initialized for this repository. The active baseline lives in `openspec/specs/options-backfill/spec.md`, and repo conventions for spec work live in `openspec/project.md`.
+
 

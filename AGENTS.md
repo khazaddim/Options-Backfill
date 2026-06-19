@@ -1,4 +1,4 @@
-<!-- OPENSPEC:START -->
+﻿<!-- OPENSPEC:START -->
 # OpenSpec Instructions
 
 These instructions are for AI assistants working in this project.
@@ -20,7 +20,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 # Repository Instructions
 
 ## Purpose
-This repository contains the extracted options backfill work that was split out of Macro_Ideas. The current implemented surface is the EODHD helper, PostgreSQL storage layer, SQL schema/query files, and tests for Milestones 0-1.
+This repository contains the extracted options backfill work that was split out of Macro_Ideas. The current implemented surface is the Massive helper, PostgreSQL storage layer, SQL schema/query files, and tests for Milestones 0-1.
 
 ## Working Rules
 - Use `openspec/AGENTS.md` for OpenSpec workflow details.
@@ -32,3 +32,4 @@ This repository contains the extracted options backfill work that was split out 
 - Install the repo with `pip install -e .[dev]` in the project virtual environment.
 - Run `python -m pytest -q` for the default test suite.
 - PostgreSQL integration tests in `tests/test_options_backfill_storage.py` require `PG_TEST_CONFIG_PATH` pointing at a safe `test_database` config and otherwise should be skipped.
+

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "options-backfill"
 version = "0.1.0"
-description = "Tools for downloading and backfilling EODHD options data into PostgreSQL."
+description = "Tools for downloading and backfilling Massive options data into PostgreSQL."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -21,7 +21,7 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["eodhd_options_helper"]
+py-modules = ["massive_options_helper"]
 
 [tool.setuptools.packages.find]
 include = ["options_backfill*"]

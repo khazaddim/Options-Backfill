@@ -1,7 +1,7 @@
-# options-backfill Specification
+﻿# options-backfill Specification
 
 ## Purpose
-Provide the durable foundation for EODHD options backfill work, including the frozen Milestone 0 interfaces and the Milestone 1 PostgreSQL storage primitives for jobs, tasks, and idempotent EOD row persistence.
+Provide the durable foundation for Massive options backfill work, including the frozen Milestone 0 interfaces and the Milestone 1 PostgreSQL storage primitives for jobs, tasks, and idempotent EOD row persistence.
 ## Requirements
 ### Requirement: Milestone 0 scope and interfaces SHALL be frozen before implementation
 The project SHALL complete a formal scope and interface freeze for v1 before implementation beyond documentation and planning begins.
@@ -33,4 +33,5 @@ The system SHALL provide a PostgreSQL persistence foundation for options backfil
 - **WHEN** the same contract and tradetime row is inserted more than once
 - **THEN** persistence does not create duplicate primary-key rows
 - **AND** update semantics follow the defined upsert policy
+
 
