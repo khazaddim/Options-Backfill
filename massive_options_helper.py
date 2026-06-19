@@ -33,7 +33,6 @@ TODO before first live production use:
 
 import hashlib
 import json
-import os
 from pathlib import Path
 from typing import Any, Optional
 from urllib.error import HTTPError, URLError
@@ -165,14 +164,45 @@ def _merge_cached_data(cached_data: pd.DataFrame, fresh_data: pd.DataFrame) -> p
     return combined.reset_index(drop=True)
 
 
-def _resolve_api_token(api_token: Optional[str]) -> str:
-    """Resolve the Massive API token from an argument or environment variable."""
-    resolved_token = api_token or os.getenv("MASSIVE_API_TOKEN")
-    if not resolved_token:
-        raise ValueError(
-            "A Massive API token is required. Pass api_token=... or set MASSIVE_API_TOKEN in the environment."
-        )
-    return resolved_token
+def _resolve_api_token(
+    api_token: Optional[str],
+    api_token_file: Optional[str | Path],
+    api_token_key: Optional[str],
+) -> str:
+    """Resolve the Massive API token from explicit function arguments only."""
+    if api_token:
+        return api_token
+
+    if api_token_file or api_token_key:
+        if not api_token_file or not api_token_key:
+            raise ValueError("Both api_token_file and api_token_key are required together.")
+        resolved_token = _load_api_token_from_file(Path(api_token_file), api_token_key)
+        if resolved_token:
+            return resolved_token
+
+    raise ValueError(
+        "A Massive API token is required. Pass api_token=... or pass both "
+        "api_token_file=... and api_token_key=...."
+    )
+
+
+def _load_api_token_from_file(file_path: Path, token_key: str) -> Optional[str]:
+    """Load a Massive API token from one explicit JSON file and key."""
+    if not file_path.exists() or not file_path.is_file():
+        return None
+
+    try:
+        payload = json.loads(file_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    token_value = payload.get(token_key)
+    if isinstance(token_value, str) and token_value.strip():
+        return token_value.strip()
+    return None
 
 
 def _normalize_fields(fields: Optional[list[str] | tuple[str, ...] | str], field_name: str) -> Optional[str]:
@@ -712,11 +742,13 @@ def _download_collection_cached(
     params: dict[str, Any],
     *,
     api_token: Optional[str] = None,
+    api_token_file: Optional[str | Path] = None,
+    api_token_key: Optional[str] = None,
     date_tolerance_days: int = 0,
     timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> pd.DataFrame:
     """Fetch one endpoint query with DuckDB-backed read-through caching."""
-    resolved_token = _resolve_api_token(api_token)
+    resolved_token = _resolve_api_token(api_token, api_token_file, api_token_key)
     cleaned_params = _clean_query_params(params)
     sort = cleaned_params.get("sort")
     start_ts, end_ts = _extract_tradetime_window(cleaned_params)
@@ -750,6 +782,8 @@ def _download_collection_cached(
 def download_options_underlying_symbols(
     *,
     api_token: Optional[str] = None,
+    api_token_file: Optional[str | Path] = None,
+    api_token_key: Optional[str] = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> pd.DataFrame:
     """Return the list of supported underlying symbols with options coverage."""
@@ -757,6 +791,8 @@ def download_options_underlying_symbols(
         "underlying-symbols",
         {},
         api_token=api_token,
+        api_token_file=api_token_file,
+        api_token_key=api_token_key,
         timeout=timeout,
     )
 
@@ -780,6 +816,8 @@ def download_options_contracts(
     compact: bool = False,
     page_limit: int = DEFAULT_PAGE_LIMIT,
     api_token: Optional[str] = None,
+    api_token_file: Optional[str | Path] = None,
+    api_token_key: Optional[str] = None,
     date_tolerance_days: int = 0,
     timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> pd.DataFrame:
@@ -806,6 +844,8 @@ def download_options_contracts(
         "contracts",
         params,
         api_token=api_token,
+        api_token_file=api_token_file,
+        api_token_key=api_token_key,
         date_tolerance_days=date_tolerance_days,
         timeout=timeout,
     )
@@ -830,6 +870,8 @@ def download_options_eod(
     compact: bool = False,
     page_limit: int = DEFAULT_PAGE_LIMIT,
     api_token: Optional[str] = None,
+    api_token_file: Optional[str | Path] = None,
+    api_token_key: Optional[str] = None,
     date_tolerance_days: int = 0,
     timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> pd.DataFrame:
@@ -856,6 +898,8 @@ def download_options_eod(
         "eod",
         params,
         api_token=api_token,
+        api_token_file=api_token_file,
+        api_token_key=api_token_key,
         date_tolerance_days=date_tolerance_days,
         timeout=timeout,
     )
@@ -872,6 +916,8 @@ def download_options_time_series(
     sort: str = "asc",
     limit: int = 50000,
     api_token: Optional[str] = None,
+    api_token_file: Optional[str | Path] = None,
+    api_token_key: Optional[str] = None,
     date_tolerance_days: int = 0,
     timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
 ) -> pd.DataFrame:
@@ -894,6 +940,8 @@ def download_options_time_series(
         "bars",
         params,
         api_token=api_token,
+        api_token_file=api_token_file,
+        api_token_key=api_token_key,
         date_tolerance_days=date_tolerance_days,
         timeout=timeout,
     )

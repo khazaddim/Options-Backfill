@@ -153,7 +153,6 @@ def test_download_options_underlying_symbols_flattens_compact_response(
 
 def test_download_options_requires_api_token(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(options_helper, "OPTIONS_CACHE_DB_PATH", tmp_path / "options_cache.duckdb")
-    monkeypatch.delenv("MASSIVE_API_TOKEN", raising=False)
 
     try:
         options_helper.download_options_underlying_symbols()
@@ -161,6 +160,36 @@ def test_download_options_requires_api_token(monkeypatch, tmp_path: Path) -> Non
         assert "Massive API token is required" in str(exc)
     else:
         raise AssertionError("Expected ValueError when no API token is configured.")
+
+
+def test_download_options_uses_token_from_explicit_json_file_and_key(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(options_helper, "OPTIONS_CACHE_DB_PATH", tmp_path / "options_cache.duckdb")
+
+    token_file = tmp_path / "massive_key.json"
+    token_file.write_text('{"my_massive_key":"demo_from_file"}', encoding="utf-8")
+
+    requested_urls: list[str] = []
+
+    def fake_http_get_json(url: str, timeout: int = 30) -> dict[str, object]:
+        requested_urls.append(url)
+        return {
+            "data": ["AAPL"],
+            "links": {"next": None},
+        }
+
+    monkeypatch.setattr(options_helper, "_http_get_json", fake_http_get_json)
+
+    result = options_helper.download_options_underlying_symbols(
+        api_token_file=str(token_file),
+        api_token_key="my_massive_key",
+    )
+
+    assert result["underlying_symbol"].tolist() == ["AAPL"]
+    assert len(requested_urls) == 1
+    assert "apiKey=demo_from_file" in requested_urls[0]
 
 
 def test_download_options_time_series_uses_massive_bars_endpoint_and_cache(

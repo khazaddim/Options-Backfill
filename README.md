@@ -20,6 +20,19 @@ Core runtime dependencies:
 - `duckdb`
 - `asyncpg`
 
+## Massive Token Configuration
+
+The helper resolves Massive credentials in this order:
+
+1. Explicit `api_token` argument passed to helper functions
+2. `api_token_file` (full JSON file path) plus `api_token_key` (exact top-level key name)
+
+Example:
+
+```powershell
+python -c "import massive_options_helper as h; print(h.download_options_underlying_symbols(api_token_file=r'C:\Users\you\keys\massive.json', api_token_key='massive_api_token').head())"
+```
+
 ## Validation
 
 Run the default test suite with:
