@@ -945,3 +945,139 @@ def download_options_time_series(
         date_tolerance_days=date_tolerance_days,
         timeout=timeout,
     )
+
+
+class MassiveOptionsHelper:
+    """Stateful options helper that resolves API credentials once at init time."""
+
+    def __init__(
+        self,
+        *,
+        api_token: Optional[str] = None,
+        api_token_file: Optional[str | Path] = None,
+        api_token_key: Optional[str] = None,
+    ) -> None:
+        self._api_token = _resolve_api_token(api_token, api_token_file, api_token_key)
+
+    def download_options_underlying_symbols(
+        self,
+        *,
+        timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    ) -> pd.DataFrame:
+        return download_options_underlying_symbols(api_token=self._api_token, timeout=timeout)
+
+    def download_options_contracts(
+        self,
+        *,
+        contract: Optional[str] = None,
+        underlying_symbol: Optional[str] = None,
+        exp_date_eq: Optional[str] = None,
+        exp_date_from: Optional[str] = None,
+        exp_date_to: Optional[str] = None,
+        tradetime_eq: Optional[str] = None,
+        tradetime_from: Optional[str] = None,
+        tradetime_to: Optional[str] = None,
+        option_type: Optional[str] = None,
+        strike_eq: Optional[float] = None,
+        strike_from: Optional[float] = None,
+        strike_to: Optional[float] = None,
+        sort: Optional[str] = None,
+        fields: Optional[list[str] | tuple[str, ...] | str] = None,
+        compact: bool = False,
+        page_limit: int = DEFAULT_PAGE_LIMIT,
+        date_tolerance_days: int = 0,
+        timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    ) -> pd.DataFrame:
+        return download_options_contracts(
+            contract=contract,
+            underlying_symbol=underlying_symbol,
+            exp_date_eq=exp_date_eq,
+            exp_date_from=exp_date_from,
+            exp_date_to=exp_date_to,
+            tradetime_eq=tradetime_eq,
+            tradetime_from=tradetime_from,
+            tradetime_to=tradetime_to,
+            option_type=option_type,
+            strike_eq=strike_eq,
+            strike_from=strike_from,
+            strike_to=strike_to,
+            sort=sort,
+            fields=fields,
+            compact=compact,
+            page_limit=page_limit,
+            api_token=self._api_token,
+            date_tolerance_days=date_tolerance_days,
+            timeout=timeout,
+        )
+
+    def download_options_eod(
+        self,
+        *,
+        contract: Optional[str] = None,
+        underlying_symbol: Optional[str] = None,
+        exp_date_eq: Optional[str] = None,
+        exp_date_from: Optional[str] = None,
+        exp_date_to: Optional[str] = None,
+        tradetime_eq: Optional[str] = None,
+        tradetime_from: Optional[str] = None,
+        tradetime_to: Optional[str] = None,
+        option_type: Optional[str] = None,
+        strike_eq: Optional[float] = None,
+        strike_from: Optional[float] = None,
+        strike_to: Optional[float] = None,
+        sort: Optional[str] = None,
+        fields: Optional[list[str] | tuple[str, ...] | str] = None,
+        compact: bool = False,
+        page_limit: int = DEFAULT_PAGE_LIMIT,
+        date_tolerance_days: int = 0,
+        timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    ) -> pd.DataFrame:
+        return download_options_eod(
+            contract=contract,
+            underlying_symbol=underlying_symbol,
+            exp_date_eq=exp_date_eq,
+            exp_date_from=exp_date_from,
+            exp_date_to=exp_date_to,
+            tradetime_eq=tradetime_eq,
+            tradetime_from=tradetime_from,
+            tradetime_to=tradetime_to,
+            option_type=option_type,
+            strike_eq=strike_eq,
+            strike_from=strike_from,
+            strike_to=strike_to,
+            sort=sort,
+            fields=fields,
+            compact=compact,
+            page_limit=page_limit,
+            api_token=self._api_token,
+            date_tolerance_days=date_tolerance_days,
+            timeout=timeout,
+        )
+
+    def download_options_time_series(
+        self,
+        *,
+        contract: str,
+        range_from: str | int,
+        range_to: str | int,
+        multiplier: int = 15,
+        timespan: str = "minute",
+        adjusted: bool = True,
+        sort: str = "asc",
+        limit: int = 50000,
+        date_tolerance_days: int = 0,
+        timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    ) -> pd.DataFrame:
+        return download_options_time_series(
+            contract=contract,
+            range_from=range_from,
+            range_to=range_to,
+            multiplier=multiplier,
+            timespan=timespan,
+            adjusted=adjusted,
+            sort=sort,
+            limit=limit,
+            api_token=self._api_token,
+            date_tolerance_days=date_tolerance_days,
+            timeout=timeout,
+        )

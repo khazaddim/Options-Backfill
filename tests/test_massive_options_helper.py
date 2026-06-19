@@ -253,3 +253,44 @@ def test_download_options_time_series_uses_massive_bars_endpoint_and_cache(
     assert second.equals(first)
     assert first["contract"].unique().tolist() == ["O:SPY250117P00450000"]
     assert first["tradetime"].notna().all()
+
+
+def test_oop_helper_resolves_json_token_once_and_reuses_it(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(options_helper, "OPTIONS_CACHE_DB_PATH", tmp_path / "options_cache.duckdb")
+
+    load_counter = {"count": 0}
+
+    def fake_load_api_token_from_file(file_path: Path, token_key: str) -> str | None:
+        load_counter["count"] += 1
+        assert str(file_path).endswith("massive_key.json")
+        assert token_key == "my_massive_key"
+        return "demo_from_file"
+
+    requested_urls: list[str] = []
+
+    def fake_http_get_json(url: str, timeout: int = 30) -> dict[str, object]:
+        requested_urls.append(url)
+        return {
+            "data": ["AAPL"],
+            "links": {"next": None},
+        }
+
+    monkeypatch.setattr(options_helper, "_load_api_token_from_file", fake_load_api_token_from_file)
+    monkeypatch.setattr(options_helper, "_http_get_json", fake_http_get_json)
+
+    helper = options_helper.MassiveOptionsHelper(
+        api_token_file=str(tmp_path / "massive_key.json"),
+        api_token_key="my_massive_key",
+    )
+
+    first = helper.download_options_underlying_symbols()
+    second = helper.download_options_underlying_symbols()
+
+    assert first["underlying_symbol"].tolist() == ["AAPL"]
+    assert second.equals(first)
+    assert load_counter["count"] == 1
+    assert len(requested_urls) == 1
+    assert "apiKey=demo_from_file" in requested_urls[0]

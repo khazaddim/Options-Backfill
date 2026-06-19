@@ -62,6 +62,31 @@ bars = h.download_options_time_series(
 )
 ```
 
+OOP usage (resolve token once, reuse for many calls):
+
+```python
+import massive_options_helper as h
+
+helper = h.MassiveOptionsHelper(
+	api_token_file=r"C:\Users\you\secrets\massive_keys.json",
+	api_token_key="massive_api_token",
+)
+
+contracts = helper.download_options_contracts(
+	underlying_symbol="SPY",
+	option_type="put",
+	page_limit=25,
+)
+
+bars = helper.download_options_time_series(
+	contract="O:SPY250117P00450000",
+	range_from="2025-01-01",
+	range_to="2025-01-10",
+	multiplier=15,
+	timespan="minute",
+)
+```
+
 ## Validation
 
 Run the default test suite with:
