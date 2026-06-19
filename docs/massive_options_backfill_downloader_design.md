@@ -41,11 +41,12 @@ The goal of this next layer is a more durable downloader/backfill system that ca
 
 The current helper should remain useful for notebook-scale exploration and for shared parsing/query conventions. The downloader should either reuse or mirror these pieces:
 
-- endpoint names: `underlying-symbols`, `contracts`, `eod`
+- endpoint names: `underlying-symbols`, `contracts`, `eod`, `bars`
 - query parameter construction for filters such as `underlying_symbol`, `exp_date_*`, `tradetime_*`, `type`, and strike filters
 - JSON flattening into tabular rows
-- pagination behavior using `page[offset]` and `page[limit]`
-- API token resolution from `api_token` or `MASSIVE_API_TOKEN`
+- pagination behavior using Massive next-page links (`next_url`, with legacy `links.next` compatibility)
+- API token resolution from explicit inputs: `api_token` or (`api_token_file` + `api_token_key`)
+- optional OOP initialization via `MassiveOptionsHelper(...)` so credentials are resolved once and reused across calls
 
 The production backfill path should not rely only on the helper's DuckDB cache, because PostgreSQL will be the durable backfill database. DuckDB can still remain useful as a notebook-level local cache, but the async downloader should treat PostgreSQL as the primary cache, queue, and validation layer.
 
