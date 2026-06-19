@@ -37,7 +37,7 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 from urllib.request import Request, urlopen
 
 from pandas import Timedelta, Timestamp
@@ -68,6 +68,19 @@ def _normalize_date(value: Optional[str], label: str) -> Optional[Timestamp]:
         return pd.to_datetime(value).normalize()
     except (ValueError, TypeError) as exc:
         raise ValueError(f"{label} must be a valid date string (YYYY-MM-DD).") from exc
+
+
+def _normalize_any_timestamp(value: object) -> Optional[Timestamp]:
+    """Parse date strings or epoch milliseconds into normalized timestamps."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        ts = pd.to_datetime(value, unit="ms", errors="coerce")
+    else:
+        ts = pd.to_datetime(value, errors="coerce")
+    if pd.isna(ts):
+        return None
+    return _normalize_timestamp_for_compare(ts)
 
 
 def _normalize_timestamp_for_compare(value: Optional[Timestamp]) -> Optional[Timestamp]:
@@ -272,6 +285,22 @@ def _translate_params_for_endpoint(endpoint: str, params: dict[str, Any]) -> dic
                 continue
             translated[mapped_key] = value
 
+        if endpoint == "bars":
+            if key in {"contract", "range_from", "range_to", "multiplier", "timespan"}:
+                translated[key] = value
+                continue
+
+            mapping = {
+                "sort": "sort",
+                "page[limit]": "limit",
+                "limit": "limit",
+                "adjusted": "adjusted",
+            }
+            mapped_key = mapping.get(key)
+            if mapped_key is None:
+                continue
+            translated[mapped_key] = value
+
     if endpoint == "underlying-symbols":
         translated.setdefault("market", "stocks")
         translated.setdefault("active", "true")
@@ -329,6 +358,12 @@ def _build_cache_table_name(endpoint: str, params: dict[str, Any]) -> str:
 
 def _extract_tradetime_window(params: dict[str, Any]) -> tuple[Optional[Timestamp], Optional[Timestamp]]:
     """Extract the tradetime filter window used for cache coverage checks."""
+    # Bars requests express range boundaries directly rather than filter[...] keys.
+    range_start = _normalize_any_timestamp(params.get("range_from"))
+    range_end = _normalize_any_timestamp(params.get("range_to"))
+    if range_start is not None or range_end is not None:
+        return range_start, range_end
+
     exact_date = _normalize_date(params.get("filter[tradetime_eq]"), "filter[tradetime_eq]")
     if exact_date is not None:
         exact_date = _normalize_timestamp_for_compare(exact_date)
@@ -412,6 +447,8 @@ def _finalize_frame(data: pd.DataFrame, sort: Optional[str]) -> pd.DataFrame:
 
 def _build_cache_row_ids(frame: pd.DataFrame) -> pd.Series:
     """Construct stable per-row identifiers used for cache deduplication."""
+    if "ticker" in frame.columns and "tradetime" in frame.columns:
+        return frame["ticker"].astype(str) + "|" + frame["tradetime"].astype(str)
     if "response_id" in frame.columns and "tradetime" in frame.columns:
         return frame["response_id"].astype(str) + "|" + frame["tradetime"].astype(str)
     if "contract" in frame.columns and "tradetime" in frame.columns:
@@ -512,6 +549,27 @@ def _normalize_records(endpoint: str, records: list[Any]) -> pd.DataFrame:
                 rows.append(row)
                 continue
 
+            if endpoint == "bars":
+                row.update(record)
+                if "ticker" in row and "contract" not in row:
+                    row["contract"] = row.get("ticker")
+                if "t" in row:
+                    row["tradetime"] = pd.to_datetime(row.get("t"), unit="ms", errors="coerce")
+                if "o" in row:
+                    row["open"] = row.get("o")
+                if "h" in row:
+                    row["high"] = row.get("h")
+                if "l" in row:
+                    row["low"] = row.get("l")
+                if "c" in row:
+                    row["last"] = row.get("c")
+                if "v" in row:
+                    row["volume"] = row.get("v")
+                if "vw" in row:
+                    row["vwap"] = row.get("vw")
+                rows.append(row)
+                continue
+
             row.update({key: value for key, value in record.items() if key not in {"attributes", "links"}})
             rows.append(row)
             continue
@@ -555,6 +613,21 @@ def _build_url(endpoint: str, params: dict[str, Any], api_token: str) -> str:
                 "Massive EOD snapshot requests require underlying_symbol because the endpoint path is /v3/snapshot/options/{underlyingAsset}."
             )
         path = f"/v3/snapshot/options/{underlying_symbol}"
+    elif endpoint == "bars":
+        contract = params.get("contract")
+        range_from = params.get("range_from")
+        range_to = params.get("range_to")
+        multiplier = int(params.get("multiplier", 15) or 15)
+        timespan = str(params.get("timespan", "minute") or "minute")
+        if not contract:
+            raise ValueError("Massive bars requests require contract.")
+        if range_from is None or range_to is None:
+            raise ValueError("Massive bars requests require both range_from and range_to.")
+
+        path = (
+            f"/v2/aggs/ticker/{quote(str(contract), safe='')}/"
+            f"range/{multiplier}/{timespan}/{range_from}/{range_to}"
+        )
     else:
         raise ValueError(f"Unsupported endpoint: {endpoint}")
 
@@ -622,6 +695,11 @@ def _fetch_endpoint_data(
     while request_url:
         payload = _http_get_json(request_url, timeout=timeout)
         page_records = _extract_page_records(payload)
+        if endpoint == "bars" and isinstance(payload.get("ticker"), str):
+            ticker = payload.get("ticker")
+            for record in page_records:
+                if isinstance(record, dict):
+                    record.setdefault("ticker", ticker)
         records.extend(page_records)
         next_link = _extract_next_link(payload)
         request_url = _append_api_key(next_link, api_token) if next_link else ""
@@ -776,6 +854,44 @@ def download_options_eod(
     )
     return _download_collection_cached(
         "eod",
+        params,
+        api_token=api_token,
+        date_tolerance_days=date_tolerance_days,
+        timeout=timeout,
+    )
+
+
+def download_options_time_series(
+    *,
+    contract: str,
+    range_from: str | int,
+    range_to: str | int,
+    multiplier: int = 15,
+    timespan: str = "minute",
+    adjusted: bool = True,
+    sort: str = "asc",
+    limit: int = 50000,
+    api_token: Optional[str] = None,
+    date_tolerance_days: int = 0,
+    timeout: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+) -> pd.DataFrame:
+    """Return Massive options aggregate bars for a contract over a time window.
+
+    This is the primary helper path for intraday options use cases such as
+    15-minute bar backfills.
+    """
+    params = {
+        "contract": contract,
+        "range_from": range_from,
+        "range_to": range_to,
+        "multiplier": int(multiplier),
+        "timespan": timespan,
+        "adjusted": adjusted,
+        "sort": sort,
+        "limit": int(limit),
+    }
+    return _download_collection_cached(
+        "bars",
         params,
         api_token=api_token,
         date_tolerance_days=date_tolerance_days,

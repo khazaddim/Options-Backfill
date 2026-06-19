@@ -161,3 +161,66 @@ def test_download_options_requires_api_token(monkeypatch, tmp_path: Path) -> Non
         assert "Massive API token is required" in str(exc)
     else:
         raise AssertionError("Expected ValueError when no API token is configured.")
+
+
+def test_download_options_time_series_uses_massive_bars_endpoint_and_cache(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(options_helper, "OPTIONS_CACHE_DB_PATH", tmp_path / "options_cache.duckdb")
+
+    requested_urls: list[str] = []
+
+    def fake_http_get_json(url: str, timeout: int = 30) -> dict[str, object]:
+        requested_urls.append(url)
+        return {
+            "ticker": "O:SPY250117P00450000",
+            "results": [
+                {
+                    "o": 1.10,
+                    "h": 1.20,
+                    "l": 1.05,
+                    "c": 1.15,
+                    "t": 1735914600000,
+                    "v": 120,
+                    "vw": 1.14,
+                },
+                {
+                    "o": 1.15,
+                    "h": 1.18,
+                    "l": 1.08,
+                    "c": 1.10,
+                    "t": 1735915500000,
+                    "v": 90,
+                    "vw": 1.12,
+                },
+            ],
+            "next_url": None,
+        }
+
+    monkeypatch.setattr(options_helper, "_http_get_json", fake_http_get_json)
+
+    first = options_helper.download_options_time_series(
+        contract="O:SPY250117P00450000",
+        range_from="2025-01-03",
+        range_to="2025-01-03",
+        multiplier=15,
+        timespan="minute",
+        api_token="demo",
+    )
+    second = options_helper.download_options_time_series(
+        contract="O:SPY250117P00450000",
+        range_from="2025-01-03",
+        range_to="2025-01-03",
+        multiplier=15,
+        timespan="minute",
+        api_token="demo",
+    )
+
+    assert len(requested_urls) == 1
+    assert "/v2/aggs/ticker/O%3ASPY250117P00450000/range/15/minute/2025-01-03/2025-01-03" in requested_urls[0]
+    assert "apiKey=demo" in requested_urls[0]
+    assert len(first) == 2
+    assert second.equals(first)
+    assert first["contract"].unique().tolist() == ["O:SPY250117P00450000"]
+    assert first["tradetime"].notna().all()

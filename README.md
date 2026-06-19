@@ -2,7 +2,7 @@
 
 Options-Backfill is the extracted options backfill portion of Macro_Ideas. It currently includes:
 
-- `massive_options_helper.py` for Massive endpoint access and DuckDB-backed local caching.
+- `massive_options_helper.py` for Massive endpoint access and DuckDB-backed local caching, including intraday options bars (for example, 15-minute series).
 - `options_backfill/` for PostgreSQL schema, storage primitives, and typed config/result models.
 - `openspec/` for specification-driven planning and change management.
 
