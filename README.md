@@ -28,6 +28,16 @@ Run the default test suite with:
 python -m pytest -q
 ```
 
+Run optional live Massive integration tests with:
+
+```powershell
+$env:MASSIVE_LIVE_TESTS = "1"
+$env:MASSIVE_API_TOKEN = "<your_token_here>"
+python -m pytest -q tests/test_massive_options_helper_live.py
+```
+
+These live tests are opt-in and skipped by default so local/CI runs stay deterministic.
+
 The PostgreSQL integration tests in `tests/test_options_backfill_storage.py` require `PG_TEST_CONFIG_PATH` to point to a JSON config for a database named `test_database`. If that config is not present, those tests are skipped.
 
 ## OpenSpec
