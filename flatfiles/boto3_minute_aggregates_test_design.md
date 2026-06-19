@@ -58,17 +58,29 @@ The script should use a dedicated Access Key ID and Secret Access Key supplied b
 
 ### Recommended local credential source
 
-Use environment variables for the first script:
+Use an external JSON file for the first script so the workflow matches the existing credential pattern used elsewhere in this repo.
+
+Recommended inputs:
+
+- `config_file`: full path to an external JSON file
+- `access_key_id_key`: top-level JSON key for the access key ID
+- `secret_access_key_key`: top-level JSON key for the secret access key
+
+Recommended default key names:
 
 - `MASSIVE_S3_ACCESS_KEY_ID`
 - `MASSIVE_S3_SECRET_ACCESS_KEY`
 
-Optional future extension:
+Example JSON file:
 
-- allow a JSON file path passed by argument
-- allow a JSON key name for parity with the REST helper style
+```json
+{
+    "MASSIVE_S3_ACCESS_KEY_ID": "YOUR_ACCESS_KEY_ID",
+    "MASSIVE_S3_SECRET_ACCESS_KEY": "YOUR_SECRET_ACCESS_KEY"
+}
+```
 
-For the initial experiment, environment variables are simpler and safer.
+This keeps credentials outside the repository while preserving an explicit file-and-key contract similar to the existing Massive helper pattern.
 
 ## Dependency
 
@@ -83,6 +95,7 @@ If the flat-file workflow becomes a permanent part of the repo, `boto3` can late
 ## Design Goals For The Test Script
 
 - keep the script standalone and easy to run from the repo root
+- follow the existing external credential file pattern used in this repo
 - validate credentials and endpoint access early
 - avoid broad recursive downloads
 - download only a small sample at first
@@ -153,6 +166,9 @@ The script should treat the exact object key format as discovered data, not as a
 
 The script should accept a few simple constants or command-line arguments:
 
+- `config_file`: external JSON credential file path
+- `access_key_id_key`: default `MASSIVE_S3_ACCESS_KEY_ID`
+- `secret_access_key_key`: default `MASSIVE_S3_SECRET_ACCESS_KEY`
 - `prefix_root`: default `us_options_opra`
 - `dataset_hint`: default `minute`
 - `max_keys_to_show`: default `50`
@@ -166,6 +182,7 @@ For a first version, constants at the top of the script are acceptable. A later 
 The script should print:
 
 - whether credentials were found
+- which external config file was used
 - the endpoint and bucket being used
 - the discovered dataset-like prefixes
 - the chosen object keys
@@ -176,7 +193,9 @@ The script should print:
 
 The script should stop early when:
 
-- required environment variables are missing
+- the config file path is missing
+- the config file does not exist
+- one or both JSON keys are missing or blank
 - listing returns `403`, which likely means plan or prefix access is missing
 - the minute-aggregate dataset prefix cannot be identified
 - no files are found under the chosen date path
@@ -188,7 +207,7 @@ Failing fast is better than downloading a large unexpected tree.
 The script can stay as one file but should still have small functions.
 
 ```python
-def read_credentials() -> tuple[str, str]:
+def load_s3_credentials(config_file: Path, access_key_id_key: str, secret_access_key_key: str) -> tuple[str, str]:
     ...
 
 def build_s3_client(access_key_id: str, secret_access_key: str):
@@ -254,24 +273,27 @@ It should not automatically decompress files. Keeping the raw `.csv.gz` is bette
 .\.venv\Scripts\python.exe -m pip install boto3
 ```
 
-### Step 2: export credentials into the shell
+### Step 2: prepare the external credential file
 
 ```powershell
-$env:MASSIVE_S3_ACCESS_KEY_ID = "YOUR_ACCESS_KEY_ID"
-$env:MASSIVE_S3_SECRET_ACCESS_KEY = "YOUR_SECRET_ACCESS_KEY"
+# Example external JSON file contents:
+# {
+#   "MASSIVE_S3_ACCESS_KEY_ID": "YOUR_ACCESS_KEY_ID",
+#   "MASSIVE_S3_SECRET_ACCESS_KEY": "YOUR_SECRET_ACCESS_KEY"
+# }
 ```
 
 ### Step 3: run the test script
 
 ```powershell
-.\.venv\Scripts\python.exe .\flatfiles\test_download_minute_aggregates.py
+.\.venv\Scripts\python.exe .\flatfiles\test_download_minute_aggregates.py --config-file "C:\full\path\to\Massive_config.json" --access-key-id-key "MASSIVE_S3_ACCESS_KEY_ID" --secret-access-key-key "MASSIVE_S3_SECRET_ACCESS_KEY"
 ```
 
 ## Suggested First Script Logic
 
 The first execution path should be conservative:
 
-1. Read credentials from environment variables.
+1. Load credentials from the external JSON config file.
 2. Build the boto3 S3 client.
 3. List immediate child prefixes under `us_options_opra/`.
 4. Pick the prefix that clearly matches minute aggregates.
@@ -294,7 +316,10 @@ The first script only needs basic error handling.
 
 ### Handle these cases explicitly
 
-- missing environment variables
+- missing config file argument
+- unreadable config file
+- invalid JSON in the config file
+- missing access-key or secret-key JSON entries
 - `ClientError` with `403 Forbidden`
 - `ClientError` with `404 Not Found`
 - empty `Contents` or empty `CommonPrefixes`
