@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from dataclasses import dataclass
 
 import pandas as pd
 import pytest
@@ -8,26 +8,37 @@ import pytest
 import massive_options_helper as options_helper
 
 
-def _require_live_massive_tests() -> str:
-    """Return Massive token if live tests are explicitly enabled, else skip."""
-    if os.getenv("MASSIVE_LIVE_TESTS") != "1":
-        pytest.skip("Set MASSIVE_LIVE_TESTS=1 to run live Massive integration tests.")
+@dataclass(frozen=True)
+class LiveMassiveAuth:
+    """Credential reference for live Massive tests."""
 
-    token = os.getenv("MASSIVE_API_TOKEN")
-    if not token:
-        pytest.skip("Set MASSIVE_API_TOKEN to run live Massive integration tests.")
-
-    return token
+    token_file: str
+    token_key: str
 
 
-def test_live_download_options_contracts_returns_shape() -> None:
-    token = _require_live_massive_tests()
+def _require_live_massive_tests(request: pytest.FixtureRequest) -> LiveMassiveAuth:
+    """Return explicit file/key auth inputs for live tests, else skip."""
+    enabled = bool(request.config.getoption("--massive-live", default=False))
+    if not enabled:
+        pytest.skip("Pass --massive-live to run live Massive integration tests.")
+
+    token_file = request.config.getoption("--massive-token-file", default="")
+    token_key = request.config.getoption("--massive-token-key", default="")
+    if not token_file or not token_key:
+        pytest.skip("Pass both --massive-token-file and --massive-token-key for live tests.")
+
+    return LiveMassiveAuth(token_file=str(token_file), token_key=str(token_key))
+
+
+def test_live_download_options_contracts_returns_shape(request: pytest.FixtureRequest) -> None:
+    auth = _require_live_massive_tests(request)
 
     frame = options_helper.download_options_contracts(
         underlying_symbol="SPY",
         option_type="put",
         page_limit=25,
-        api_token=token,
+        api_token_file=auth.token_file,
+        api_token_key=auth.token_key,
     )
 
     assert isinstance(frame, pd.DataFrame)
@@ -36,14 +47,15 @@ def test_live_download_options_contracts_returns_shape() -> None:
     assert "option_type" in frame.columns
 
 
-def test_live_download_options_time_series_accepts_real_contract() -> None:
-    token = _require_live_massive_tests()
+def test_live_download_options_time_series_accepts_real_contract(request: pytest.FixtureRequest) -> None:
+    auth = _require_live_massive_tests(request)
 
     contracts = options_helper.download_options_contracts(
         underlying_symbol="SPY",
         option_type="put",
         page_limit=10,
-        api_token=token,
+        api_token_file=auth.token_file,
+        api_token_key=auth.token_key,
     )
     assert not contracts.empty
 
@@ -54,7 +66,8 @@ def test_live_download_options_time_series_accepts_real_contract() -> None:
         range_to="2025-01-10",
         multiplier=15,
         timespan="minute",
-        api_token=token,
+        api_token_file=auth.token_file,
+        api_token_key=auth.token_key,
     )
 
     assert isinstance(bars, pd.DataFrame)

@@ -33,6 +33,35 @@ Example:
 python -c "import massive_options_helper as h; print(h.download_options_underlying_symbols(api_token_file=r'C:\Users\you\keys\massive.json', api_token_key='massive_api_token').head())"
 ```
 
+Quick reference:
+
+- `api_token_file` should be an absolute path to a JSON file anywhere on your machine (it does not need to be in this repo).
+- `api_token_key` should match the exact top-level JSON key name containing your Massive token.
+
+Example JSON file:
+
+```json
+{
+	"massive_api_token": "YOUR_REAL_TOKEN"
+}
+```
+
+Example helper call:
+
+```python
+import massive_options_helper as h
+
+bars = h.download_options_time_series(
+		contract="O:SPY250117P00450000",
+		range_from="2025-01-01",
+		range_to="2025-01-10",
+		multiplier=15,
+		timespan="minute",
+		api_token_file=r"C:\Users\you\secrets\massive_keys.json",
+		api_token_key="massive_api_token",
+)
+```
+
 ## Validation
 
 Run the default test suite with:
@@ -44,9 +73,7 @@ python -m pytest -q
 Run optional live Massive integration tests with:
 
 ```powershell
-$env:MASSIVE_LIVE_TESTS = "1"
-$env:MASSIVE_API_TOKEN = "<your_token_here>"
-python -m pytest -q tests/test_massive_options_helper_live.py
+python -m pytest -q tests/test_massive_options_helper_live.py --massive-live --massive-token-file "C:\full\path\to\your\keys.json" --massive-token-key "massive_api_token"
 ```
 
 These live tests are opt-in and skipped by default so local/CI runs stay deterministic.
